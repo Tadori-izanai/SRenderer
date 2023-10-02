@@ -155,7 +155,7 @@ void demo2() {
 	
 	int n = model.nfaces();
 	for (int i = 0; i < n; i += 1) {
-		std::vector<int> f = model.face(i);
+		std::vector<int> f = model.facePositions(i);
 		for (int j = 0; j < 3; j += 1) {
 			Vec3f v0 = model.vert(f[j]);
 			Vec3f v1 = model.vert(f[(j + 1) % 3]);
@@ -336,7 +336,7 @@ void demo4() {
 	
 	int n = model.nfaces();
 	for (int i = 0; i < n; i += 1) {
-		std::vector<int> face = model.face(i);	// vertex indices
+		std::vector<int> face = model.facePositions(i);	// vertex indices
 		Vec2i screenCoords[3];
 		for (int j = 0; j < 3; j += 1) {
 			Vec3f v = model.vert(face[j]);
@@ -351,7 +351,7 @@ void demo4() {
 	canvas.write_tga_file("output/random_colors.tga");
 }
 
-// Do back-face culling
+// Do back-facePositions culling
 void demo5() {
 	Vec3f lightDir(0, 0, -1);
 
@@ -362,7 +362,7 @@ void demo5() {
 	
 	int n = model.nfaces();
 	for (int i = 0; i < n; i += 1) {
-		std::vector<int> face = model.face(i);	// vertex indices
+		std::vector<int> face = model.facePositions(i);	// vertex indices
 		Vec2i screenCoords[3];
 		Vec3f worldCoords[3];
 		for (int j = 0; j < 3; j += 1) {
@@ -396,7 +396,7 @@ Vec3f worldToScreen(const Vec3f &worldCoord, int width, int height) {
 }
 
 // Uses z-buffer
-void demoe6() {
+void demo6() {
 	Vec3f lightDir(0, 0, -1);
 
 	int width = 800;
@@ -409,7 +409,7 @@ void demoe6() {
 	std::fill(zBuffer, zBuffer + width * height, -1);
 
 	for (int i = 0; i < n; i += 1) {
-		std::vector<int> face = model.face(i);
+		std::vector<int> face = model.facePositions(i);
 		Vec3f screenCoords[3];
 		Vec3f worldCoords[3];
 		for (int j = 0; j < 3; j += 1) {
@@ -420,21 +420,96 @@ void demoe6() {
 		Vec3f n = (worldCoords[1] - worldCoords[0]) ^ (worldCoords[2] - worldCoords[0]);
 		n.normalize();
 		float intensity = -(lightDir * n);
-		triangle(canvas, zBuffer ,screenCoords, white * intensity);
+		triangle(canvas, zBuffer, screenCoords, white * intensity);
 	}	
 
 	canvas.flip_vertically();
 	canvas.write_tga_file("output/zbuffer.tga");	
 }
 
+void triangle(TGAImage &img, const TGAImage &texture, float *zBuffer, const Vec3f &light,
+              const Vec3f positions[], const Vec2f uvs[], const Vec3f normals[])
+{
+    const float eps = 0.001;
+    int xLeft = std::numeric_limits<int>::max();
+    int xRight = std::numeric_limits<int>::min();
+    int yBottom = std::numeric_limits<int>::max();
+    int yTop = std::numeric_limits<int>::min();
+    for (int i = 0; i < 3; i += 1) {
+        xLeft = std::min(xLeft, (int) positions[i].x);
+        xRight = std::max(xRight, (int) positions[i].x);
+        yBottom = std::min(yBottom, (int) positions[i].y);
+        yTop = std::max(yTop, (int) positions[i].y);
+    }
+    for (int y = yBottom; y <= yTop; y += 1) {
+        for (int x = xLeft; x <= xRight; x += 1) {
+            Vec3f bc = barycentric(positions, Vec2i(x, y));
+            if (bc.x < -eps || bc.y < -eps || bc.z < -eps) {
+                continue;
+            }
+
+            float zWorldCoord = 0;
+            Vec3f nn;
+            Vec2f uv;
+            for (int i = 0; i < 3; i += 1) {
+                zWorldCoord += positions[i].z * bc[i];
+                nn = nn + normals[i] * bc[i];
+                uv = uv + uvs[i] * bc[i];
+            }
+            if (zWorldCoord > zBuffer[x + img.get_width() * y]) {
+                zBuffer[x + img.get_width() * y] = zWorldCoord;
+
+                nn.normalize();
+                float intensity = -(light * nn);
+                TGAColor c = texture.get(uv) * intensity;
+                img.set(x, y, c);
+            }
+        }
+    }
+}
+
 // z-buffer with texture
 void demo7() {
-	
+    Vec3f lightDir(0, 0, -1);
+
+    int width = 800;
+    int height = 800;
+    TGAImage canvas(width, height, TGAImage::RGB);
+    TGAImage texture;
+    if (!texture.read_tga_file("./obj/african_head_diffuse.tga")) {
+        std::cout << "Failed to read ./obj/african_head_diffuse.tga" << std::endl;
+        return;
+    }
+    Model model("./obj/african_head.obj");
+
+    int n = model.nfaces();
+    float *zBuffer = new float[width * height];
+    std::fill(zBuffer, zBuffer + width * height, -1);
+
+    for (int i = 0; i < n; i += 1) {
+        std::vector<int> facePos = model.facePositions(i);
+        std::vector<int> faceTex = model.faceTextures(i);
+        std::vector<int> faceNor = model.faceNormals(i);
+
+        Vec3f screenCoords[3];
+        Vec2f textureCoords[3];
+        Vec3f normals[3];
+        for (int j = 0; j < 3; j += 1) {
+            screenCoords[j] = worldToScreen(model.vert(facePos[j]), width, height);
+            textureCoords[j] = model.uv(faceTex[j]);
+            normals[j] = model.normal(faceNor[j]);
+        }
+
+        triangle(canvas, texture, zBuffer, lightDir, screenCoords, textureCoords, normals);
+    }
+
+    canvas.flip_vertically();
+    canvas.write_tga_file("output/zbuffer_with_tex.tga");
 }
 
 void test();
 int main(int argc, char** argv) {
-	demoe6();
+	demo7();
 	return 0;
 }
 

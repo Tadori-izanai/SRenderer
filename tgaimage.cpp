@@ -248,7 +248,7 @@ bool TGAImage::unload_rle_data(std::ofstream &out) {
 	return true;
 }
 
-TGAColor TGAImage::get(int x, int y) {
+TGAColor TGAImage::get(int x, int y) const {
 	if (!data || x<0 || y<0 || x>=width || y>=height) {
 		return TGAColor();
 	}
@@ -350,3 +350,8 @@ bool TGAImage::scale(int w, int h) {
 	return true;
 }
 
+TGAColor TGAImage::get(Vec2f uv) const {
+    int x = static_cast<int>(uv.x * width);
+    int y = static_cast<int>(uv.y * height);
+    return get(x, y);
+}

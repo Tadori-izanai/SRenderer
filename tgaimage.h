@@ -2,6 +2,7 @@
 #define __IMAGE_H__
 
 #include <fstream>
+#include "geometry.h"
 
 #pragma pack(push,1)
 struct TGA_Header {
@@ -86,7 +87,7 @@ public:
 	bool flip_horizontally();
 	bool flip_vertically();
 	bool scale(int w, int h);
-	TGAColor get(int x, int y);
+	TGAColor get(int x, int y) const;
 	bool set(int x, int y, TGAColor c);
 	~TGAImage();
 	TGAImage & operator =(const TGAImage &img);
@@ -95,6 +96,8 @@ public:
 	int get_bytespp();
 	unsigned char *buffer();
 	void clear();
+
+    TGAColor get(Vec2f uv) const;
 };
 
 #endif //__IMAGE_H__
