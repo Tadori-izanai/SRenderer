@@ -507,6 +507,8 @@ void demo7() {
     canvas.write_tga_file("output/zbuffer_with_tex.tga");
 }
 
+
+
 void test();
 int main(int argc, char** argv) {
 	demo7();
