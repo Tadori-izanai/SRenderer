@@ -441,6 +441,11 @@ void triangle(TGAImage &img, const TGAImage &texture, float *zBuffer, const Vec3
         yBottom = std::min(yBottom, (int) positions[i].y);
         yTop = std::max(yTop, (int) positions[i].y);
     }
+    xLeft = std::max(0, xLeft);
+    xRight = std::min(img.get_width() - 1, xRight);
+    yBottom = std::max(0, yBottom);
+    yTop = std::min(img.get_height() - 1, yTop);
+
     for (int y = yBottom; y <= yTop; y += 1) {
         for (int x = xLeft; x <= xRight; x += 1) {
             Vec3f bc = barycentric(positions, Vec2i(x, y));
@@ -507,15 +512,97 @@ void demo7() {
     canvas.write_tga_file("output/zbuffer_with_tex.tga");
 }
 
+Matrix getViewport(int width, int height) {
+    Matrix m = Matrix::identity(4);
+    m[0][0] = width / 2.f;
+    m[0][3] = width / 2.f;
+    m[1][1] = height / 2.f;
+    m[1][3] = height / 2.f;
+    return m;
+}
+
+Matrix getProjection(float zCamera) {
+    Matrix m = Matrix::identity(4);
+    m[3][2] = -1 / zCamera;
+    return m;
+}
+
+Matrix vec2mat(Vec3f v) {
+    Matrix m(4, 4);
+    m[0][0] = v.x;
+    m[1][0] = v.y;
+    m[2][0] = v.z;
+    m[3][0] = 1.f;
+    return m;
+}
+
+Vec3f mat2vec(Matrix m) {
+    return Vec3f(m[0][0], m[1][0], m[2][0]) / m[3][0];
+}
+
+// Uses projection and viewport matrices
+void demo8() {
+    Vec3f lightDir(0, 0, -1);
+    Vec3f camera(0, 0, 3);
+    int width = 800;
+    int height = 800;
+    Matrix projection = getProjection(camera.z);
+    Matrix viewport = getViewport(width, height);
+
+    TGAImage canvas(width, height, TGAImage::RGB);
+    TGAImage texture;
+    if (!texture.read_tga_file("./obj/african_head_diffuse.tga")) {
+        std::cout << "Failed to read ./obj/african_head_diffuse.tga" << std::endl;
+        return;
+    }
+    Model model("./obj/african_head.obj");
+
+    int n = model.nfaces();
+    float *zBuffer = new float[width * height];
+    std::fill(zBuffer, zBuffer + width * height, -1);
+
+    for (int i = 0; i < n; i += 1) {
+        std::vector<int> facePos = model.facePositions(i);
+        std::vector<int> faceTex = model.faceTextures(i);
+        std::vector<int> faceNor = model.faceNormals(i);
+
+        Vec3f screenCoords[3];
+        Vec2f textureCoords[3];
+        Vec3f normals[3];
+        for (int j = 0; j < 3; j += 1) {
+//            screenCoords[j] = worldToScreen(model.vert(facePos[j]), width, height);
+            screenCoords[j] = mat2vec(
+                    viewport * projection * vec2mat(model.vert(facePos[j]))
+                    );
+            textureCoords[j] = model.uv(faceTex[j]);
+            normals[j] = model.normal(faceNor[j]);
+        }
+
+        triangle(canvas, texture, zBuffer, lightDir, screenCoords, textureCoords, normals);
+    }
+
+    canvas.flip_vertically();
+    canvas.write_tga_file("output/zbuffer_with_tex_proj.tga");
+}
+
 
 
 void test();
 int main(int argc, char** argv) {
-	demo7();
+	demo8();
 	return 0;
 }
 
 void test() {
 	Vec3f v(1, 2, 3);
-	std::cout << v[1] << std::endl;
+//	std::cout << v[1] << std::endl;
+
+//    std::cout << int(1.1) << std::endl;
+//    std::cout << int(1.5) << std::endl;
+//    std::cout << int(1.6) << std::endl;
+
+    Vec3f u(3, 4, 5);
+    std::cout << u << std::endl;
+    std::cout << u.normalize() << std::endl;
+    std::cout << u << std::endl;
 }

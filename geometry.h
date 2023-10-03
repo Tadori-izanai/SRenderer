@@ -43,6 +43,7 @@ template <class t> struct Vec3 {
 
 	// 
 	inline t operator [](int idx) const { return raw[idx]; }
+    inline Vec3<t> operator /(float f)          const { return Vec3<t>(x/f, y/f, z/f); }
 };
 
 typedef Vec2<float> Vec2f;
