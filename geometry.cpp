@@ -104,3 +104,15 @@ std::ostream& operator<<(std::ostream& s, Matrix& m) {
     return s;
 }
 
+////
+//
+Vec4f Matrix::operator*(const Vec4f &v) {
+    assert(rows == 4 && cols == 4);
+    float elems[4] = {0};
+    for (int i = 0; i < 4; i += 1) {
+        for (int j = 0; j < 4; j += 1) {
+            elems[i] += m[i][j] * v[j];
+        }
+    }
+    return Vec4f(elems[0], elems[1], elems[2], elems[3]);
+}
