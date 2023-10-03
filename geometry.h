@@ -80,6 +80,8 @@ public:
     Matrix inverse();
 
     friend std::ostream& operator<<(std::ostream& s, Matrix& m);
+
+
 };
 
 
