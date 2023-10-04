@@ -219,11 +219,6 @@ void triangle(TGAImage &img, const Vec2i pts[], const TGAColor &c) {
     }
 }
 
-/**
- * Draws a triangle considering the z-buffer.
- * The x and y coordinates of pts[i] is in the screen space ([0, width) x [0, height)),
- * and the z coordinate of pts[i] is in the world space. (i = 0, 1, 2)
- */
 void triangle(TGAImage &img, float *zBuffer, const Vec3f pts[], const TGAColor &c) {
     const float eps = 0.001;
     int xLeft = std::numeric_limits<int>::max();
@@ -255,11 +250,6 @@ void triangle(TGAImage &img, float *zBuffer, const Vec3f pts[], const TGAColor &
     }
 }
 
-/**
- * Converts the world coordinate to the screen.
- * Lets (x, y) converts from (-1, 1) x (-1, 1) to (0, width) x (0, height)
- * Remains z constant.
-*/
 Vec3f worldToScreen(const Vec3f &worldCoord, int width, int height) {
     int x = (worldCoord.x + 1.f) * .5f * width;
     int y = (worldCoord.y + 1.f) * .5f * height;
@@ -321,14 +311,12 @@ Matrix getViewport(int width, int height) {
     return m;
 }
 
-/** zCamera is the distance between eye and center */
 Matrix getProjection(float zCamera) {
     Matrix m = Matrix::identity(4);
     m[3][2] = -1 / zCamera;
     return m;
 }
 
-// for a point, not a vector
 Matrix vec2mat(Vec3f v) {
     Matrix m(4, 4);
     m[0][0] = v.x;
@@ -382,7 +370,6 @@ Matrix getViewport(int width, int height, int depth) {
     return m;
 }
 
-// [-1,1]*[-1,1]*[-1,1] is mapped onto the screen cube [x,x+w]*[y,y+h]*[0,d]
 Matrix getViewport(int width, int height, int depth, int x, int y) {
     Matrix m = Matrix::identity(4);
     m[0][0] = width / 2.f;
@@ -396,4 +383,62 @@ Matrix getViewport(int width, int height, int depth, int x, int y) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
+    float eps = 1e-2;
+    Vec2f AB(A - B);
+    Vec2f AC(A - C);
+    Vec2f PA(P - A);
+    Vec3f crossProd = Vec3f(AB.x, AC.x, PA.x) ^ Vec3f(AB.y, AC.y, PA.y);
+    if (std::abs(crossProd.z) < eps) {
+        return Vec3f(-1, 1, 1);
+    }
+    float u = crossProd.x / crossProd.z;
+    float v = crossProd.y / crossProd.z;
+    return Vec3f(1.0f - u - v, u, v);
+}
+
+/** Returns Vec4f(xLeft, xRight, yBottom, yTop) */
+Vec4f getBBox(int width, int height, const Vec3f vertices[]) {
+    float xLeft = std::numeric_limits<float>::max();
+    float xRight = std::numeric_limits<float>::min();
+    float yBottom = std::numeric_limits<float>::max();
+    float yTop = std::numeric_limits<float>::min();
+    for (int i = 0; i < 3; i += 1) {
+        xLeft = std::min(xLeft, vertices[i].x);
+        xRight = std::max(xRight, vertices[i].x);
+        yBottom = std::min(yBottom, vertices[i].y);
+        yTop = std::max(yTop, vertices[i].y);
+    }
+    xLeft = std::max(0.f, xLeft);
+    xRight = std::min((float) width - 1, xRight);
+    yBottom = std::max(0.f, yBottom);
+    yTop = std::min((float) height - 1, yTop);
+
+    return Vec4f(xLeft, xRight, yBottom, yTop);
+}
+
+void triangle(Vec4f pts[], IShader &shader, TGAImage &canvas, float *zBuffer) {
+    const float eps = 0.001;
+    Vec3f vertCoords[3];
+    for (int i = 0; i < 3; i += 1) {
+        vertCoords[i] = pts[i].proj3();
+    }
+
+    Vec4f bbox = getBBox(canvas.get_width(), canvas.get_height(), vertCoords);
+    for (int y = bbox[2]; y <= bbox[3]; y += 1) {
+        for (int x = bbox[0]; x <= bbox[1]; x += 1) {
+            Vec2f curr(x + .5f, y + .5f);
+            Vec3f bc = barycentric(vertCoords[0].xy(), vertCoords[1].xy(), vertCoords[2].xy(), curr);
+            if (bc.x < -eps || bc.y < -eps || bc.z < -eps) {
+                continue;
+            }
+            float zCurr = bc[0] * vertCoords[0].z + bc[1] * vertCoords[1].z + bc[2] * vertCoords[2].z;
+            TGAColor color;
+            if (zCurr > zBuffer[x + canvas.get_width() * y] && shader.fragment(bc, color)) {
+                zBuffer[x + canvas.get_width() * y] = zCurr;
+                canvas.set(x, y, color);
+            }
+        }
+    }
+}
 

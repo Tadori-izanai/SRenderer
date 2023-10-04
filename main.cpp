@@ -252,8 +252,8 @@ void demo8() {
 
 // do mvp and viewport
 void demo9() {
-    const int width = 400;
-    const int height = 400;
+    const int width = 800;
+    const int height = 800;
     const int depth = 255;
 
     TGAImage canvas(width, height, TGAImage::RGB);
@@ -301,19 +301,8 @@ void demo9() {
     canvas.write_tga_file("output/mvp.tga");
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-void test();
-int main(int argc, char** argv) {
-	test();
-	return 0;
-}
-
 void test() {
-	Vec3f v(1, 2, 3);
+//    Vec3f v(1, 2, 3);
 //	std::cout << v[1] << std::endl;
 
 //    std::cout << int(1.1) << std::endl;
@@ -325,12 +314,53 @@ void test() {
 //    std::cout << u.normalize() << std::endl;
 //    std::cout << u << std::endl;
 
-    Vec4f u(1, 0, 0, 1);
-    Matrix m = Matrix::identity(4);
-    m[0][0] = 3.f / 5;
-    m[0][3] = 4.f / 5;
-    m[3][0] = -4.f / 5;
-    m[3][3] = 3.f / 5;
-    std::cout << (m * u) << std::endl;
-//    std::cout << Vec3f() << std::endl;
+//    Vec4f u(1, 0, 0, 1);
+//    Matrix m = Matrix::identity(4);
+//    m[0][0] = 3.f / 5;
+//    m[0][3] = 4.f / 5;
+//    m[3][0] = -4.f / 5;
+//    m[3][3] = 3.f / 5;
+//    std::cout << (m * u) << std::endl;
+//
+//    Mesh model("./obj/african_head.obj");
+//    std::cout << model.nFaces() << std::endl;
+
+    int width = 800;
+    int height = 800;
+    TGAImage canvas(width, height, TGAImage::RGB);
+    Mesh model("./obj/african_head.obj");
+
+    int n = model.nFaces();
+    for (int i = 0; i < n; i += 1) {
+        std::vector<size_t> f = model.face(i);
+        for (int j = 0; j < 3; j += 1) {
+            Vec3f v0 = model.vert(f[j]).position;
+            Vec3f v1 = model.vert(f[(j + 1) % 3]).position;
+            int x0 = (v0.x + 1.0f) * 0.5f * width;
+            int y0 = (v0.y + 1.0f) * 0.5f * height;
+            int x1 = (v1.x + 1.0f) * 0.5f * width;
+            int y1 = (v1.y + 1.0f) * 0.5f * height;
+            line(canvas, x0, y0, x1, y1, white);
+        }
+    }
+    canvas.flip_vertically();
+    canvas.write_tga_file("output/test.tga");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+Model *model = nullptr;
+const int width = 800;
+const int height = 800;
+
+Vec3f lightDir(-1, -1, -1);
+Vec3f eyePos(0, -1, 3);
+Vec3f center(0, 0, 0);
+Vec3f up(0, 1, 0);
+
+
+
+int main(int argc, char** argv) {
+	test();
+	return 0;
 }

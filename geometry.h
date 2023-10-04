@@ -22,6 +22,7 @@ template <class t> struct Vec2 {
 
 	//
 	inline t operator [](int idx) const { return raw[idx]; }
+    inline Vec2<t> operator /(float f)          const { return Vec2<t>(u/f, v/f); }
 };
 
 template <class t> struct Vec3 {
@@ -44,6 +45,8 @@ template <class t> struct Vec3 {
 	// 
 	inline t operator [](int idx) const { return raw[idx]; }
     inline Vec3<t> operator /(float f)          const { return Vec3<t>(x/f, y/f, z/f); }
+    //
+    Vec2<t> xy() { return Vec2<t>(x, y); }
 };
 
 
@@ -66,7 +69,12 @@ template <class t> struct Vec4 {
 
     //
     inline t operator [](int idx) const { return raw[idx]; }
-    inline Vec3<t> operator /(float f)          const { return Vec4<t>(x/f, y/f, z/f, w/f); }
+    inline Vec4<t> operator /(float f)          const { return Vec4<t>(x/f, y/f, z/f, w/f); }
+    //
+    Vec3<t> xyz() { return Vec3<t>(x, y, z); }
+    Vec2<t> xy() { return Vec2<t>(x, y); }
+    Vec3<t> proj3() { return xyz() / w; }
+    Vec2<t> proj2() { return xy() / w; }
 };
 
 typedef Vec2<float> Vec2f;

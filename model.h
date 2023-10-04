@@ -27,4 +27,26 @@ public:
     std::vector<int> faceNormals(int idx);   // normal indices of the idx-th face's vertices
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Vertex {
+    Vec3f position;
+    Vec2f uv;
+    Vec3f normal;
+    Vertex(Vec3f p, Vec2f t, Vec3f n) : position(p), uv(t), normal(n) {}
+};
+
+class Mesh {
+    std::vector<std::vector<size_t> > faces;
+    std::vector<Vertex> vertices;
+public:
+    Mesh(const char *filename);
+    ~Mesh() {}
+    size_t nVertices() { return vertices.size(); }
+    size_t nFaces() { return faces.size(); }
+    Vertex vert(size_t idx) const { return vertices[idx]; }
+    std::vector<size_t> face(int idx) { return faces[idx]; }
+    Vertex getVertex(int iFace, int iVert) { return vertices[faces[iFace][iVert]]; }
+};
+
 #endif //__MODEL_H__

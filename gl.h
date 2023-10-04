@@ -77,9 +77,26 @@ Matrix getViewport(int width, int height, int depth);
 // [-1,1]*[-1,1]*[-1,1] is mapped onto the screen cube [x,x+w]*[y,y+h]*[0,d]
 Matrix getViewport(int width, int height, int depth, int x, int y);
 
+/** Shader interface */
 class IShader {
     virtual ~IShader() {}
 
+public:
+    /** Transforms the coordinates of the vertices,
+     * and prepares data (store in varying variables) for the fragment shader. */
+    virtual Vec4f vertex(int iFace, int nthVert) = 0;
+
+    /** Determines the color of the current pixel,
+     * and we can discard current pixel by returning true */
+    virtual bool fragment(Vec3f bary, TGAColor &color) = 0;
 };
+
+/**
+ * Renders a triangle on the canvas.
+ * @param pts the coordinates of the triangle's vertices (size of 3),
+ *            usually calculated via shader.vertex()
+ * @param shader the shader used on the triangle
+ */
+void triangle(Vec4f pts[], IShader &shader, TGAImage &canvas, float *zBuffer);
 
 #endif //__GL_H__

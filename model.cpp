@@ -94,5 +94,53 @@ std::vector<int> Model::faceTextures(int i) {
     return faces_tex[i];
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
+Mesh::Mesh(const char *filename) {
+    std::ifstream in;
+    in.open(filename, std::ifstream::in);
+    if (in.fail()) {
+        std::cout << "failed to read " << filename << std::endl;
+        return;
+    }
 
+    std::vector<Vec3f> positions;
+    std::vector<Vec2f> uvs;
+    std::vector<Vec3f> normals;
+
+    std::string line;
+    while (!in.eof()) {
+        std::getline(in, line);
+        std::istringstream iss(line.c_str());
+
+        char trash;
+        if (!line.compare(0, 2, "v ")) {
+            Vec3f v;
+            iss >> trash >> v.x >> v.y >> v.z;
+            positions.push_back(v);
+
+        } else if (!line.compare(0, 2, "vt")) {
+            float zeroTrash;
+            Vec2f v;
+            iss >> trash >> trash >> v.x >> v.y >> zeroTrash;
+            uvs.push_back(Vec2f(v.x, 1.f - v.y));
+
+        } else if (!line.compare(0, 2, "vn")) {
+            Vec3f v;
+            iss >> trash >> trash >> v.x >> v.y >> v.z;
+            normals.push_back(v);
+
+        } else if (!line.compare(0, 2, "f ")) {
+            int idxPosition, idxUV, idxNormal;
+            std::vector<size_t> indices;
+            iss >> trash;
+            while (iss >> idxPosition >> trash >> idxUV >> trash >> idxNormal) {
+                Vertex vtx(positions[--idxPosition], uvs[--idxUV], normals[--idxNormal]);
+                indices.push_back(vertices.size());
+                vertices.push_back(vtx);
+            }
+            faces.push_back(indices);
+        }
+    }
+    std::cerr << "# v# " << vertices.size() << " f# " << faces.size() << std::endl;
+}
