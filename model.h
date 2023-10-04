@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "geometry.h"
+#include "tgaimage.h"
 
 class Model {
 private:
@@ -39,14 +40,24 @@ struct Vertex {
 class Mesh {
     std::vector<std::vector<size_t> > faces;
     std::vector<Vertex> vertices;
+    TGAImage diffuseMap;
+    TGAImage normalMap;
+    TGAImage specularMap;
 public:
     Mesh(const char *filename);
+    Mesh(const char *filename, const char *textureFile);
+    Mesh(const char *filename, const char *textureFile, const char *normalFile);
+    Mesh(const char *filename, const char *textureFile, const char *normalFile, const char *specularFile);
     ~Mesh() {}
-    size_t nVertices() { return vertices.size(); }
+
+//    size_t nVertices() { return vertices.size(); }
     size_t nFaces() { return faces.size(); }
-    Vertex vert(size_t idx) const { return vertices[idx]; }
-    std::vector<size_t> face(int idx) { return faces[idx]; }
+//    Vertex vert(size_t idx) const { return vertices[idx]; }
+//    std::vector<size_t> face(int idx) { return faces[idx]; }
     Vertex getVertex(int iFace, int iVert) { return vertices[faces[iFace][iVert]]; }
+
+    TGAColor getDiffuse(Vec2f uv) { return diffuseMap.get(uv); }
+    Vec3f getNormal(Vec2f uv);
 };
 
 #endif //__MODEL_H__

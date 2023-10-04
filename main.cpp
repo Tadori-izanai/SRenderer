@@ -32,7 +32,7 @@ void demo2() {
 	int width = 800;
 	int height = 800;
 	TGAImage canvas(width, height, TGAImage::RGB);
-	Model model("./obj/african_head.obj");
+	Model model("../obj/african_head.obj");
 	
 	int n = model.nfaces();
 	for (int i = 0; i < n; i += 1) {
@@ -77,7 +77,7 @@ void demo4() {
 	int width = 800;
 	int height = 800;
 	TGAImage canvas(width, height, TGAImage::RGB);
-	Model model("./obj/african_head.obj");
+	Model model("../obj/african_head.obj");
 	
 	int n = model.nfaces();
 	for (int i = 0; i < n; i += 1) {
@@ -103,7 +103,7 @@ void demo5() {
 	int width = 800;
 	int height = 800;
 	TGAImage canvas(width, height, TGAImage::RGB);
-	Model model("./obj/african_head.obj");
+	Model model("../obj/african_head.obj");
 	
 	int n = model.nfaces();
 	for (int i = 0; i < n; i += 1) {
@@ -136,7 +136,7 @@ void demo6() {
 	int width = 800;
 	int height = 800;
 	TGAImage canvas(width, height, TGAImage::RGB);
-	Model model("./obj/african_head.obj");
+	Model model("../obj/african_head.obj");
 
 	int n = model.nfaces();
 	float *zBuffer = new float[width * height];
@@ -169,11 +169,11 @@ void demo7() {
     int height = 800;
     TGAImage canvas(width, height, TGAImage::RGB);
     TGAImage texture;
-    if (!texture.read_tga_file("./obj/african_head_diffuse.tga")) {
-        std::cout << "Failed to read ./obj/african_head_diffuse.tga" << std::endl;
+    if (!texture.read_tga_file("../obj/african_head_diffuse.tga")) {
+        std::cout << "Failed to read ../obj/african_head_diffuse.tga" << std::endl;
         return;
     }
-    Model model("./obj/african_head.obj");
+    Model model("../obj/african_head.obj");
 
     int n = model.nfaces();
     float *zBuffer = new float[width * height];
@@ -216,11 +216,11 @@ void demo8() {
 
     TGAImage canvas(width, height, TGAImage::RGB);
     TGAImage texture;
-    if (!texture.read_tga_file("./obj/african_head_diffuse.tga")) {
-        std::cout << "Failed to read ./obj/african_head_diffuse.tga" << std::endl;
+    if (!texture.read_tga_file("../obj/african_head_diffuse.tga")) {
+        std::cout << "Failed to read ../obj/african_head_diffuse.tga" << std::endl;
         return;
     }
-    Model model("./obj/african_head.obj");
+    Model model("../obj/african_head.obj");
 
     int n = model.nfaces();
     float *zBuffer = new float[width * height];
@@ -258,11 +258,11 @@ void demo9() {
 
     TGAImage canvas(width, height, TGAImage::RGB);
     TGAImage texture;
-    if (!texture.read_tga_file("./obj/african_head_diffuse.tga")) {
-        std::cout << "Failed to read ./obj/african_head_diffuse.tga" << std::endl;
+    if (!texture.read_tga_file("../obj/african_head_diffuse.tga")) {
+        std::cout << "Failed to read ../obj/african_head_diffuse.tga" << std::endl;
         return;
     }
-    Model model("./obj/african_head.obj");
+    Model model("../obj/african_head.obj");
 
     Vec3f lightDir = Vec3f(-1, 1, -1).normalize();
     Vec3f eye(1, 1, 3);
@@ -308,6 +308,10 @@ void test0() {
     std::cout << std::numeric_limits<float>::min() << std::endl;
     std::cout << std::numeric_limits<float>::lowest() << std::endl;
     std::cout << std::numeric_limits<float>::max() << std::endl;
+
+    Matrix M = Matrix::identity(4);
+    std::cout << M.multiply(v, Vec4<float>::VECTOR) << std::endl;
+    std::cout << M.multiply(v, Vec4<float>::POINT) << std::endl;
 }
 
 void test() {
@@ -320,11 +324,11 @@ void test() {
     int height = 800;
     TGAImage canvas(width, height, TGAImage::RGB);
     TGAImage texture;
-    if (!texture.read_tga_file("./obj/african_head_diffuse.tga")) {
-        std::cout << "Failed to read ./obj/african_head_diffuse.tga" << std::endl;
+    if (!texture.read_tga_file("../obj/african_head_diffuse.tga")) {
+        std::cout << "Failed to read ../obj/african_head_diffuse.tga" << std::endl;
         return;
     }
-    Mesh model("./obj/african_head.obj");
+    Mesh model("../obj/african_head.obj");
 
     int n = model.nFaces();
     float *zBuffer = new float[width * height];
@@ -361,43 +365,48 @@ Vec3f eyePos(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
+//TGAImage *texture;
+
 class PhongShader : public IShader {
-    Vec3f varyingNormals[3];
+    Matrix uniformMVP;          // projection * view * model
+    Matrix uniformMVPIT;        // inverse transpose of (projection * view * model)
+//    Vec3f varyingNormals[3];
+    Vec2f varyingUVs[3];
 
 public:
+    explicit PhongShader(Matrix mvp) : uniformMVP(mvp) {
+        uniformMVPIT = mvp.inverse().transpose();
+    }
+
     virtual Vec4f vertex(int iFace, int nthVert) {
         Vertex curr = model->getVertex(iFace, nthVert);
         Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
-        gl_Vertex = viewport * projection * modelView * gl_Vertex;
-        varyingNormals[nthVert] = curr.normal;
+        gl_Vertex = viewport * uniformMVP * gl_Vertex;
+
+//        varyingNormals[nthVert] = curr.normal;
+        varyingUVs[nthVert] = curr.uv;
         return gl_Vertex;
     }
 
     virtual bool fragment(Vec3f bary, TGAColor &color) {
-        Vec3f normal = (
-            varyingNormals[0] * bary[0] + varyingNormals[1] * bary[1] + varyingNormals[2] * bary[2]
-        ).normalize();
-        float intensity = -(lightDir * normal);
-        color = WHITE * intensity;
+        Vec2f uv = varyingUVs[0] * bary[0] + varyingUVs[1] * bary[1] + varyingUVs[2] * bary[2];
+//        Vec3f normal = (
+//            varyingNormals[0] * bary[0] + varyingNormals[1] * bary[1] + varyingNormals[2] * bary[2]
+//        ).normalize();
+        Vec3f normal = model->getNormal(uv);
+        normal = uniformMVPIT.multiply(normal, Vec4<float>::VECTOR).normalize();
 
-
-        if (intensity>.85) intensity = 1;
-        else if (intensity>.60) intensity = .80;
-        else if (intensity>.45) intensity = .60;
-        else if (intensity>.30) intensity = .45;
-        else if (intensity>.15) intensity = .30;
-        else intensity = 0;
-        color = TGAColor(255, 155, 0) * intensity;
-
+        Vec3f l = -uniformMVP.multiply(lightDir, Vec4<float>::VECTOR).normalize();
+        float intensity = l * normal;
+        color = model->getDiffuse(uv) * intensity;
         return false;
     }
 };
 
 void demo() {
-    model = new Mesh("./obj/african_head.obj");
+    model = new Mesh("../obj/african_head.obj", "../obj/african_head_diffuse.tga",
+                     "../obj/african_head_nm.tga", "../obj/african_head_spec.tga");
     lightDir.normalize();
-//    up = Vec3f(-.4, 2, -.4).normalize();        //
-//    eyePos = Vec3f(1, 2, 3);                    //
 
     modelView = lookAt(eyePos, center, up);
     projection = getProjection((eyePos - center).norm());
@@ -407,7 +416,7 @@ void demo() {
     float *zBuffer = new float[width * height];
     std::fill(zBuffer, zBuffer + width * height, std::numeric_limits<float>::lowest());
 
-    PhongShader shader;
+    PhongShader shader(projection * modelView);
     for (int i = 0; i < model->nFaces(); i += 1) {
         Vec4f screenCoords[3];
         for (int j = 0; j < 3; j += 1) {
@@ -417,7 +426,8 @@ void demo() {
     }
 
     canvas.flip_vertically();
-    canvas.write_tga_file("output/output.tga");
+    canvas.write_tga_file("../output/output.tga");
+    delete[] zBuffer;
     delete model;
 }
 

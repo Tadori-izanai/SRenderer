@@ -116,3 +116,10 @@ Vec4f Matrix::operator*(const Vec4f &v) {
     }
     return Vec4f(elems[0], elems[1], elems[2], elems[3]);
 }
+
+Vec3f Matrix::multiply(const Vec3f &v, Vec4f::Type type) {
+    if (type == Vec4<float>::POINT) {
+        return ((*this) * Vec4f(v, Vec4<float>::POINT)).proj3();
+    }
+    return ((*this) * Vec4f(v, Vec4<float>::VECTOR)).xyz();
+}

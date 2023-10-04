@@ -28,18 +28,7 @@ Model::Model(const char *filename) : verts_(), faces_pos(), textures_(), normals
             Vec3f v;
             iss >> trash >> trash >> v.x >> v.y >> v.z;
             normals_.push_back(v);
-        }
-//        else if (!line.compare(0, 2, "f ")) {
-//            std::vector<int> f;
-//            int itrash, idx;
-//            iss >> trash;
-//            while (iss >> idx >> trash >> itrash >> trash >> itrash) {
-//                idx--; // in wavefront obj all indices start at 1, not zero
-//                f.push_back(idx);
-//            }
-//            faces_pos.push_back(f);
-//        }
-        else if (!line.compare(0, 2, "f ")) {
+        } else if (!line.compare(0, 2, "f ")) {
             std::vector<int> fPositions;
             std::vector<int> fTextures;
             std::vector<int> fNormals;
@@ -94,6 +83,7 @@ std::vector<int> Model::faceTextures(int i) {
     return faces_tex[i];
 }
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 Mesh::Mesh(const char *filename) {
@@ -101,7 +91,6 @@ Mesh::Mesh(const char *filename) {
     in.open(filename, std::ifstream::in);
     if (in.fail()) {
         std::cout << "failed to read " << filename << std::endl;
-//        return;
         std::exit(0);
     }
 
@@ -144,4 +133,38 @@ Mesh::Mesh(const char *filename) {
         }
     }
     std::cerr << "# v# " << vertices.size() << " f# " << faces.size() << std::endl;
+}
+
+Mesh::Mesh(const char *filename, const char *textureFile) : Mesh(filename) {
+    if (!diffuseMap.read_tga_file(textureFile)) {
+        std::cout << "Failed to read " << textureFile << std::endl;
+        exit(0);
+    }
+}
+
+Mesh::Mesh(const char *filename, const char *textureFile, const char *normalFile)
+    : Mesh(filename, textureFile)
+{
+    if (!normalMap.read_tga_file(normalFile)) {
+        std::cout << "Failed to read " << textureFile << std::endl;
+        exit(0);
+    }
+}
+
+Mesh::Mesh(const char *filename, const char *textureFile, const char *normalFile, const char *specularFile)
+    : Mesh(filename, textureFile, normalFile)
+{
+    if (!specularMap.read_tga_file(specularFile)) {
+        std::cout << "Failed to read " << textureFile << std::endl;
+        exit(0);
+    }
+}
+
+Vec3f Mesh::getNormal(Vec2f uv) {
+    TGAColor c = normalMap.get(uv);
+    Vec3f res;
+    res.x = (float) c.r / 255.f * 2.f - 1.f;
+    res.y = (float) c.g / 255.f * 2.f - 1.f;
+    res.z = (float) c.b / 255.f * 2.f - 1.f;
+    return res.normalize();
 }
