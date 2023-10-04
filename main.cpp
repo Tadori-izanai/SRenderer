@@ -357,7 +357,7 @@ const int height = 800;
 const int depth = 255;
 
 Vec3f lightDir(-1, -1, -1);
-Vec3f eyePos(0, -1, 3);
+Vec3f eyePos(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
@@ -379,6 +379,16 @@ public:
         ).normalize();
         float intensity = -(lightDir * normal);
         color = WHITE * intensity;
+
+
+        if (intensity>.85) intensity = 1;
+        else if (intensity>.60) intensity = .80;
+        else if (intensity>.45) intensity = .60;
+        else if (intensity>.30) intensity = .45;
+        else if (intensity>.15) intensity = .30;
+        else intensity = 0;
+        color = TGAColor(255, 155, 0) * intensity;
+
         return false;
     }
 };
@@ -386,8 +396,8 @@ public:
 void demo() {
     model = new Mesh("./obj/african_head.obj");
     lightDir.normalize();
-    up = Vec3f(-.4, 2, -.4).normalize();        //
-    eyePos = Vec3f(1, 2, 3);                    //
+//    up = Vec3f(-.4, 2, -.4).normalize();        //
+//    eyePos = Vec3f(1, 2, 3);                    //
 
     modelView = lookAt(eyePos, center, up);
     projection = getProjection((eyePos - center).norm());

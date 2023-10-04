@@ -332,19 +332,38 @@ Matrix modelView;
 Matrix projection;
 Matrix viewport;
 
+//Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up) { // wrong
+//    Matrix translation = Matrix::identity(4);
+//    for (int i = 0; i < 3; i += 1) {
+//        translation[i][3] = -center[i];
+//    }
+//
+//    Vec3f g = (center - eyePos).normalize();
+//    Vec3f x = (g ^ up).normalize();
+//    Matrix rotation(4, 4);
+//    rotation[3][3] = 1;
+//    for (int j = 0; j < 3; j += 1) {
+//        rotation[0][j] = x[j];
+//        rotation[1][j] = up[j];
+//        rotation[2][j] = -g[j];
+//    }
+//
+//    return rotation * translation;
+//}
+
 Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up) {
     Matrix translation = Matrix::identity(4);
     for (int i = 0; i < 3; i += 1) {
         translation[i][3] = -center[i];
     }
 
-    Vec3f g = (center - eyePos).normalize();
-    Vec3f x = (g ^ up).normalize();
-    Matrix rotation(4, 4);
-    rotation[3][3] = 1;
+    Vec3f g = (center - eyePos).normalize();    // along -z'
+    Vec3f r = (g ^ up).normalize();             // along x'
+    Vec3f t = (r ^ g).normalize();              // along y'
+    Matrix rotation = Matrix::identity(4);
     for (int j = 0; j < 3; j += 1) {
-        rotation[0][j] = x[j];
-        rotation[1][j] = up[j];
+        rotation[0][j] = r[j];
+        rotation[1][j] = t[j];
         rotation[2][j] = -g[j];
     }
 

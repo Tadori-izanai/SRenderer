@@ -36,6 +36,9 @@ struct TGAColor {
 	TGAColor() : val(0), bytespp(1) {
 	}
 
+    TGAColor(unsigned char R, unsigned char G, unsigned char B) : b(B), g(G), r(R), a(255) {
+    }
+
 	TGAColor(unsigned char R, unsigned char G, unsigned char B, unsigned char A) : b(B), g(G), r(R), a(A), bytespp(4) {
 	}
 
