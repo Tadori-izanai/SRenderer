@@ -101,7 +101,8 @@ Mesh::Mesh(const char *filename) {
     in.open(filename, std::ifstream::in);
     if (in.fail()) {
         std::cout << "failed to read " << filename << std::endl;
-        return;
+//        return;
+        std::exit(0);
     }
 
     std::vector<Vec3f> positions;

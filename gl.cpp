@@ -302,21 +302,6 @@ void triangle(TGAImage &img, const TGAImage &texture, float *zBuffer, const Vec3
     }
 }
 
-Matrix getViewport(int width, int height) {
-    Matrix m = Matrix::identity(4);
-    m[0][0] = width / 2.f;
-    m[0][3] = width / 2.f;
-    m[1][1] = height / 2.f;
-    m[1][3] = height / 2.f;
-    return m;
-}
-
-Matrix getProjection(float zCamera) {
-    Matrix m = Matrix::identity(4);
-    m[3][2] = -1 / zCamera;
-    return m;
-}
-
 Matrix vec2mat(Vec3f v) {
     Matrix m(4, 4);
     m[0][0] = v.x;
@@ -340,6 +325,13 @@ Vec3f vecTrans(Matrix m, Vec3f v) {
     return Vec3f(elem[0], elem[1], elem[2]);
 }
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+Matrix modelView;
+Matrix projection;
+Matrix viewport;
+
 Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up) {
     Matrix translation = Matrix::identity(4);
     for (int i = 0; i < 3; i += 1) {
@@ -357,6 +349,21 @@ Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up) {
     }
 
     return rotation * translation;
+}
+
+Matrix getProjection(float zCamera) {
+    Matrix m = Matrix::identity(4);
+    m[3][2] = -1 / zCamera;
+    return m;
+}
+
+Matrix getViewport(int width, int height) {
+    Matrix m = Matrix::identity(4);
+    m[0][0] = width / 2.f;
+    m[0][3] = width / 2.f;
+    m[1][1] = height / 2.f;
+    m[1][3] = height / 2.f;
+    return m;
 }
 
 Matrix getViewport(int width, int height, int depth) {
@@ -381,8 +388,6 @@ Matrix getViewport(int width, int height, int depth, int x, int y) {
     return m;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
 Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
     float eps = 1e-2;
     Vec2f AB(A - B);
@@ -400,9 +405,9 @@ Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
 /** Returns Vec4f(xLeft, xRight, yBottom, yTop) */
 Vec4f getBBox(int width, int height, const Vec3f vertices[]) {
     float xLeft = std::numeric_limits<float>::max();
-    float xRight = std::numeric_limits<float>::min();
+    float xRight = std::numeric_limits<float>::lowest();
     float yBottom = std::numeric_limits<float>::max();
-    float yTop = std::numeric_limits<float>::min();
+    float yTop = std::numeric_limits<float>::lowest();
     for (int i = 0; i < 3; i += 1) {
         xLeft = std::min(xLeft, vertices[i].x);
         xRight = std::max(xRight, vertices[i].x);
@@ -434,7 +439,7 @@ void triangle(Vec4f pts[], IShader &shader, TGAImage &canvas, float *zBuffer) {
             }
             float zCurr = bc[0] * vertCoords[0].z + bc[1] * vertCoords[1].z + bc[2] * vertCoords[2].z;
             TGAColor color;
-            if (zCurr > zBuffer[x + canvas.get_width() * y] && shader.fragment(bc, color)) {
+            if (zCurr > zBuffer[x + canvas.get_width() * y] && !shader.fragment(bc, color)) {
                 zBuffer[x + canvas.get_width() * y] = zCurr;
                 canvas.set(x, y, color);
             }

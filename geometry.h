@@ -24,6 +24,9 @@ template <class t> struct Vec2 {
 	inline t operator [](int idx) const { return raw[idx]; }
     inline Vec2<t> operator /(float f)          const { return Vec2<t>(u/f, v/f); }
 };
+typedef Vec2<float> Vec2f;
+typedef Vec2<int>   Vec2i;
+
 
 template <class t> struct Vec3 {
 	union {
@@ -48,6 +51,8 @@ template <class t> struct Vec3 {
     //
     Vec2<t> xy() { return Vec2<t>(x, y); }
 };
+typedef Vec3<float> Vec3f;
+typedef Vec3<int>   Vec3i;
 
 
 template <class t> struct Vec4 {
@@ -75,14 +80,21 @@ template <class t> struct Vec4 {
     Vec2<t> xy() { return Vec2<t>(x, y); }
     Vec3<t> proj3() { return xyz() / w; }
     Vec2<t> proj2() { return xy() / w; }
+    //
+    enum Type {
+        POINT, VECTOR
+    };
+    Vec4(Vec3f v, Type type) : x(v.x), y(v.y), z(v.z) {
+        if (type == POINT) {
+            w = 1.f;
+        } else if (type == VECTOR) {
+            w = 0.f;
+        }
+    }
 };
-
-typedef Vec2<float> Vec2f;
-typedef Vec2<int>   Vec2i;
-typedef Vec3<float> Vec3f;
-typedef Vec3<int>   Vec3i;
 typedef Vec4<float> Vec4f;
 typedef Vec4<int>   Vec4i;
+
 
 template <class t> std::ostream& operator<<(std::ostream& s, const Vec2<t>& v) {
 	s << "(" << v.x << ", " << v.y << ")\n";
@@ -98,6 +110,7 @@ template <class t> std::ostream &operator<<(std::ostream &s, const Vec4<t> &v) {
     s << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")\n";
     return s;
 }
+
 
 //////
 

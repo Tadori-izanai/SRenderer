@@ -8,10 +8,10 @@
 #include "tgaimage.h"
 #include "geometry.h"
 
-const TGAColor white = TGAColor(255, 255, 255, 255);
-const TGAColor red   = TGAColor(255, 0,   0,   255);
-const TGAColor green = TGAColor(0,   255, 0,   255);
-const TGAColor blue  = TGAColor(0,   0,   255, 255);
+const TGAColor WHITE = TGAColor(255, 255, 255, 255);
+const TGAColor RED   = TGAColor(255, 0, 0, 255);
+const TGAColor GREEN = TGAColor(0, 255, 0, 255);
+const TGAColor BLUE  = TGAColor(0, 0, 255, 255);
 
 void lineNaive(TGAImage &img, int x0, int y0, int x1, int y1, const TGAColor &c);
 
@@ -65,6 +65,10 @@ Vec3f vecTrans(Matrix m, Vec3f v);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+extern Matrix modelView;
+extern Matrix projection;
+extern Matrix viewport;
+
 Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up);
 
 /** zCamera is the distance between eye and center */
@@ -79,6 +83,7 @@ Matrix getViewport(int width, int height, int depth, int x, int y);
 
 /** Shader interface */
 class IShader {
+protected:
     virtual ~IShader() {}
 
 public:
