@@ -66,7 +66,8 @@ struct TGAColor {
 		return TGAColor(r * f, g * f, b * f, a);
 	}
 
-    unsigned char operator [](int idx) const { return raw[idx]; }
+//    unsigned char operator [](int idx) const { return raw[idx]; }
+    unsigned char &operator [](int idx) { return raw[idx]; }
 };
 
 

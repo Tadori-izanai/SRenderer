@@ -44,7 +44,7 @@ class Mesh {
     TGAImage normalMap;
     TGAImage specularMap;
 public:
-    Mesh(const char *filename);
+    explicit Mesh(const char *filename);
     Mesh(const char *filename, const char *textureFile);
     Mesh(const char *filename, const char *textureFile, const char *normalFile);
     Mesh(const char *filename, const char *textureFile, const char *normalFile, const char *specularFile);
@@ -58,6 +58,7 @@ public:
 
     TGAColor getDiffuse(Vec2f uv) { return diffuseMap.get(uv); }
     Vec3f getNormal(Vec2f uv);
+    float getSpecular(Vec2f uv);
 };
 
 #endif //__MODEL_H__

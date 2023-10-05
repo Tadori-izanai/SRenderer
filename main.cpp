@@ -365,12 +365,10 @@ Vec3f eyePos(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
-//TGAImage *texture;
 
 class PhongShader : public IShader {
     Matrix uniformMVP;          // projection * view * model
     Matrix uniformMVPIT;        // inverse transpose of (projection * view * model)
-//    Vec3f varyingNormals[3];
     Vec2f varyingUVs[3];
 
 public:
@@ -378,27 +376,30 @@ public:
         uniformMVPIT = mvp.inverse().transpose();
     }
 
-    virtual Vec4f vertex(int iFace, int nthVert) {
+    Vec4f vertex(int iFace, int nthVert) override {
         Vertex curr = model->getVertex(iFace, nthVert);
         Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
         gl_Vertex = viewport * uniformMVP * gl_Vertex;
 
-//        varyingNormals[nthVert] = curr.normal;
         varyingUVs[nthVert] = curr.uv;
         return gl_Vertex;
     }
 
-    virtual bool fragment(Vec3f bary, TGAColor &color) {
+    bool fragment(Vec3f bary, TGAColor &color) override {
         Vec2f uv = varyingUVs[0] * bary[0] + varyingUVs[1] * bary[1] + varyingUVs[2] * bary[2];
-//        Vec3f normal = (
-//            varyingNormals[0] * bary[0] + varyingNormals[1] * bary[1] + varyingNormals[2] * bary[2]
-//        ).normalize();
-        Vec3f normal = model->getNormal(uv);
-        normal = uniformMVPIT.multiply(normal, Vec4<float>::VECTOR).normalize();
 
+        Vec3f n = model->getNormal(uv);
+        n = uniformMVPIT.multiply(n, Vec4<float>::VECTOR).normalize();
         Vec3f l = -uniformMVP.multiply(lightDir, Vec4<float>::VECTOR).normalize();
-        float intensity = l * normal;
-        color = model->getDiffuse(uv) * intensity;
+        Vec3f r = (n * (n * l * 2.f) - l).normalize();
+
+        int ambient = 5;
+        float diffuse = std::max(l * n, 0.f);
+        float specular = std::pow(std::max(r.z, 0.f), model->getSpecular(uv));
+        TGAColor c = model->getDiffuse(uv);
+        for (int i = 0; i < 3; i += 1) {
+            color[i] = std::min(ambient + int(c[i] * (diffuse + specular * .6f)), 255);
+        }
         return false;
     }
 };
@@ -413,7 +414,7 @@ void demo() {
     viewport = getViewport(width * 3 / 4, height * 3 / 4, depth, width / 8, height / 8);
 
     TGAImage canvas(width, height, TGAImage::RGB);
-    float *zBuffer = new float[width * height];
+    auto *zBuffer = new float[width * height];
     std::fill(zBuffer, zBuffer + width * height, std::numeric_limits<float>::lowest());
 
     PhongShader shader(projection * modelView);

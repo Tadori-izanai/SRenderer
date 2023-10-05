@@ -332,25 +332,6 @@ Matrix modelView;
 Matrix projection;
 Matrix viewport;
 
-//Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up) { // wrong
-//    Matrix translation = Matrix::identity(4);
-//    for (int i = 0; i < 3; i += 1) {
-//        translation[i][3] = -center[i];
-//    }
-//
-//    Vec3f g = (center - eyePos).normalize();
-//    Vec3f x = (g ^ up).normalize();
-//    Matrix rotation(4, 4);
-//    rotation[3][3] = 1;
-//    for (int j = 0; j < 3; j += 1) {
-//        rotation[0][j] = x[j];
-//        rotation[1][j] = up[j];
-//        rotation[2][j] = -g[j];
-//    }
-//
-//    return rotation * translation;
-//}
-
 Matrix lookAt(Vec3f eyePos, Vec3f center, Vec3f up) {
     Matrix translation = Matrix::identity(4);
     for (int i = 0; i < 3; i += 1) {
@@ -414,11 +395,11 @@ Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
     Vec2f PA(P - A);
     Vec3f crossProd = Vec3f(AB.x, AC.x, PA.x) ^ Vec3f(AB.y, AC.y, PA.y);
     if (std::abs(crossProd.z) < eps) {
-        return Vec3f(-1, 1, 1);
+        return {-1, 1, 1};
     }
     float u = crossProd.x / crossProd.z;
     float v = crossProd.y / crossProd.z;
-    return Vec3f(1.0f - u - v, u, v);
+    return {1.0f - u - v, u, v};
 }
 
 /** Returns Vec4f(xLeft, xRight, yBottom, yTop) */
@@ -438,7 +419,7 @@ Vec4f getBBox(int width, int height, const Vec3f vertices[]) {
     yBottom = std::max(0.f, yBottom);
     yTop = std::min((float) height - 1, yTop);
 
-    return Vec4f(xLeft, xRight, yBottom, yTop);
+    return {xLeft, xRight, yBottom, yTop};
 }
 
 void triangle(Vec4f pts[], IShader &shader, TGAImage &canvas, float *zBuffer) {

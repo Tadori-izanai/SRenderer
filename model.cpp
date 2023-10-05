@@ -168,3 +168,7 @@ Vec3f Mesh::getNormal(Vec2f uv) {
     res.z = (float) c.b / 255.f * 2.f - 1.f;
     return res.normalize();
 }
+
+float Mesh::getSpecular(Vec2f uv) {
+    return specularMap.get(uv)[0];
+}
