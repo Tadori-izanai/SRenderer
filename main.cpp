@@ -302,16 +302,19 @@ void demo9() {
 }
 
 void test0() {
-    Vec3f v(1, 2, 3);
-    Vec4f vv(v, Vec4<float>::POINT);
-    std::cout << v << vv << std::endl;
-    std::cout << std::numeric_limits<float>::min() << std::endl;
-    std::cout << std::numeric_limits<float>::lowest() << std::endl;
-    std::cout << std::numeric_limits<float>::max() << std::endl;
+//    Vec3f v(1, 2, 3);
+//    Vec4f vv(v, Vec4<float>::POINT);
+//    std::cout << v << vv << std::endl;
+//    std::cout << std::numeric_limits<float>::min() << std::endl;
+//    std::cout << std::numeric_limits<float>::lowest() << std::endl;
+//    std::cout << std::numeric_limits<float>::max() << std::endl;
+//
+//    Matrix M = Matrix::identity(4);
+//    std::cout << M.multiply(v, Vec4<float>::VECTOR) << std::endl;
+//    std::cout << M.multiply(v, Vec4<float>::POINT) << std::endl;
 
-    Matrix M = Matrix::identity(4);
-    std::cout << M.multiply(v, Vec4<float>::VECTOR) << std::endl;
-    std::cout << M.multiply(v, Vec4<float>::POINT) << std::endl;
+    Matrix m(3, 3);
+    std::cout << m << std::endl;
 }
 
 void test() {
@@ -360,19 +363,47 @@ const int width = 800;
 const int height = 800;
 const int depth = 255;
 
-Vec3f lightDir(-1, -1, -1);
-Vec3f eyePos(1, 1, 3);
+Vec3f lightDir(-1, -1, 0);
+Vec3f eyePos(1, 1, 4);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
+float *shadowDepth;
 
-class PhongShader : public IShader {
-    Matrix uniformMVP;          // projection * view * model
-    Matrix uniformMVPIT;        // inverse transpose of (projection * view * model)
-    Vec2f varyingUVs[3];
+class DepthShader : public IShader {
+    Matrix uniformMVP;
+    Vec3f varyingPositions[3];
 
 public:
-    explicit PhongShader(Matrix mvp) : uniformMVP(mvp) {
+    explicit DepthShader(Matrix mvp) : uniformMVP(mvp) {}
+
+    Vec4f vertex(int iFace, int nthVert) override {
+        Vertex curr = model->getVertex(iFace, nthVert);
+        Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
+        gl_Vertex = viewport * uniformMVP * gl_Vertex;
+        varyingPositions[nthVert] = gl_Vertex.proj3();
+        return gl_Vertex;
+    }
+
+    bool fragment(Vec3f bary, TGAColor &color) override {
+        float z = 0;
+        for (int i = 0; i < 3; i += 1) {
+            z += varyingPositions[i].z * bary[i];
+        }
+        color = WHITE * (z / depth);
+        return false;
+    }
+};
+
+class Shader : public IShader {
+    Matrix uniformMVP;          // projection * view * model
+    Matrix uniformMVPIT;        // inverse transpose of (projection * view * model)
+    Matrix uniformMVPLight;
+    Vec2f varyingUVs[3];
+    Vec3f varyingPositions[3];
+
+public:
+    explicit Shader(Matrix mvp, Matrix mvpLight) : uniformMVP(mvp), uniformMVPLight(mvpLight) {
         uniformMVPIT = mvp.inverse().transpose();
     }
 
@@ -381,11 +412,22 @@ public:
         Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
         gl_Vertex = viewport * uniformMVP * gl_Vertex;
 
+        varyingPositions[nthVert] = curr.position;
         varyingUVs[nthVert] = curr.uv;
         return gl_Vertex;
     }
 
     bool fragment(Vec3f bary, TGAColor &color) override {
+        const float eps = 10;
+        Vec3f positionInSM = (viewport * uniformMVPLight).multiply(
+            varyingPositions[0] * bary[0] + varyingPositions[1] * bary[1] + varyingPositions[2] * bary[2],
+            Vec4<float>::POINT
+        );
+        float shadow = .4f;
+        if (positionInSM.z > shadowDepth[int(positionInSM.x) + width * int(positionInSM.y)] - eps) {
+            shadow = 1.f;
+        }
+
         Vec2f uv = varyingUVs[0] * bary[0] + varyingUVs[1] * bary[1] + varyingUVs[2] * bary[2];
 
         Vec3f n = model->getNormal(uv);
@@ -398,36 +440,114 @@ public:
         float specular = std::pow(std::max(r.z, 0.f), model->getSpecular(uv));
         TGAColor c = model->getDiffuse(uv);
         for (int i = 0; i < 3; i += 1) {
-            color[i] = std::min(ambient + int(c[i] * (diffuse + specular * .6f)), 255);
+            color[i] = std::min(ambient + int(c[i] * (diffuse + specular * .6f) * shadow), 255);
         }
         return false;
     }
 };
 
+/** used for tangent space normal mapping */
+class TGShader : public IShader {
+    Matrix uniformMVP;          // projection * view * model
+    Matrix uniformMVPIT;        // inverse transpose of (projection * view * model)
+    Vec3f varyingPositions[3];
+    Vec2f varyingUVs[3];
+    Vec3f varyingNormals[3];
+
+public:
+    explicit TGShader(Matrix mvp) : uniformMVP(mvp) {
+        uniformMVPIT = mvp.inverse().transpose();
+    }
+
+    Vec4f vertex(int iFace, int nthVert) override {
+        Vertex curr = model->getVertex(iFace, nthVert);
+        varyingPositions[nthVert] = uniformMVP.multiply(curr.position, Vec4<float>::POINT);
+        varyingUVs[nthVert] = curr.uv;
+        varyingNormals[nthVert] = uniformMVPIT.multiply(curr.normal, Vec4<float>::VECTOR);
+
+        Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
+        gl_Vertex = viewport * uniformMVP * gl_Vertex;
+        return gl_Vertex;
+    }
+
+    bool fragment(Vec3f bary, TGAColor &color) override {
+        Vec2f uv = varyingUVs[0] * bary[0] + varyingUVs[1] * bary[1] + varyingUVs[2] * bary[2];
+        Vec3f N = (
+            varyingNormals[0] * bary[0] + varyingNormals[1] * bary[1] + varyingNormals[2] * bary[2]
+        ).normalize();
+
+        Matrix A(3, 3);
+        A.assignRow(0, varyingPositions[1] - varyingPositions[0]);
+        A.assignRow(1, varyingPositions[2] - varyingPositions[0]);
+        A.assignRow(2, N);
+        Matrix invA = A.inverse();
+        Vec2f deltaUV1 = varyingUVs[1] - varyingUVs[0];
+        Vec2f deltaUV2 = varyingUVs[2] - varyingUVs[0];
+        Vec3f T = (invA * Vec3f(deltaUV1.u, deltaUV2.u, 0.f)).normalize();
+        Vec3f B = (invA * Vec3f(deltaUV1.v, deltaUV2.v, 0.f)).normalize();
+
+        Vec3f tbn = model->getNormal(uv);
+        Vec3f normal = (T * tbn[0] + B * tbn[1] + N * tbn[2]).normalize();
+        Vec3f l = -uniformMVP.multiply(lightDir, Vec4<float>::VECTOR).normalize();
+        float intensity = std::max(l * normal, 0.f);
+
+        color = model->getDiffuse(uv) * intensity;
+        return false;
+    }
+};
+
+/** Gets the shadow map, and returns the MVP on light (the viewport matrix is the same) */
+Matrix getShadowMap(float *shadowDepth) {
+    Matrix MV = lookAt(-lightDir, center, up);
+    Matrix P = Matrix::identity(4);        // non perspective
+
+    TGAImage shadowFrame(width, height, TGAImage::RGB);
+    DepthShader ds(P * MV);
+    for (int i = 0; i < model->nFaces(); i += 1) {
+        Vec4f screenCoords[3];
+        for (int j = 0; j < 3; j += 1) {
+            screenCoords[j] = ds.vertex(i, j);
+        }
+        triangle(screenCoords, ds, shadowFrame, shadowDepth);
+    }
+    shadowFrame.flip_vertically();
+    shadowFrame.write_tga_file("../output/shadow_map.tga");
+    return P * MV;
+}
+
 void demo() {
-    model = new Mesh("../obj/african_head.obj", "../obj/african_head_diffuse.tga",
-                     "../obj/african_head_nm.tga", "../obj/african_head_spec.tga");
+//    model = new Mesh("../obj/african_head.obj", "../obj/african_head_diffuse.tga",
+//                     "../obj/african_head_nm.tga", "../obj/african_head_spec.tga");
+////                     "../obj/african_head_nm_tangent.tga", "../obj/african_head_spec.tga");
+    model = new Mesh("../obj/diablo3_pose/diablo3_pose.obj", "../obj/diablo3_pose/diablo3_pose_diffuse.tga",
+                     "../obj/diablo3_pose/diablo3_pose_nm.tga", "../obj/diablo3_pose/diablo3_pose_spec.tga");
     lightDir.normalize();
 
     modelView = lookAt(eyePos, center, up);
     projection = getProjection((eyePos - center).norm());
     viewport = getViewport(width * 3 / 4, height * 3 / 4, depth, width / 8, height / 8);
 
-    TGAImage canvas(width, height, TGAImage::RGB);
+    shadowDepth = new float[width * height];
+    std::fill(shadowDepth, shadowDepth + width * depth, std::numeric_limits<float>::lowest());
+    Matrix lightMVP = getShadowMap(shadowDepth);
+
+    TGAImage frame(width, height, TGAImage::RGB);
     auto *zBuffer = new float[width * height];
     std::fill(zBuffer, zBuffer + width * height, std::numeric_limits<float>::lowest());
 
-    PhongShader shader(projection * modelView);
+    Shader shader(projection * modelView, lightMVP);
+//    TGShader shader(projection * modelView);
     for (int i = 0; i < model->nFaces(); i += 1) {
         Vec4f screenCoords[3];
         for (int j = 0; j < 3; j += 1) {
             screenCoords[j] = shader.vertex(i, j);
         }
-        triangle(screenCoords, shader, canvas, zBuffer);
+        triangle(screenCoords, shader, frame, zBuffer);
     }
 
-    canvas.flip_vertically();
-    canvas.write_tga_file("../output/output.tga");
+    frame.flip_vertically();
+    frame.write_tga_file("../output/output.tga");
+    delete[] shadowDepth;
     delete[] zBuffer;
     delete model;
 }

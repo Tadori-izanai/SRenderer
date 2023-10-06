@@ -109,13 +109,13 @@ Mesh::Mesh(const char *filename) {
             iss >> trash >> v.x >> v.y >> v.z;
             positions.push_back(v);
 
-        } else if (!line.compare(0, 2, "vt")) {
+        } else if (!line.compare(0, 3, "vt ")) {
             float zeroTrash;
             Vec2f v;
             iss >> trash >> trash >> v.x >> v.y >> zeroTrash;
             uvs.push_back(Vec2f(v.x, 1.f - v.y));
 
-        } else if (!line.compare(0, 2, "vn")) {
+        } else if (!line.compare(0, 3, "vn ")) {
             Vec3f v;
             iss >> trash >> trash >> v.x >> v.y >> v.z;
             normals.push_back(v);

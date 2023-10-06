@@ -126,7 +126,7 @@ public:
     inline int ncols();
 
     static Matrix identity(int dimensions);
-    std::vector<float>& operator[](const int i);
+    std::vector<float>& operator[](int i);
     Matrix operator*(const Matrix& a);
     Matrix transpose();
     Matrix inverse();
@@ -135,7 +135,10 @@ public:
 
     //
     Vec4f operator*(const Vec4f &v);
+    Vec3f operator*(const Vec3f &v);
     Vec3f multiply(const Vec3f &v, Vec4f::Type type);
+    void assignRow(int r, const std::vector<float> &v);
+    void assignRow(int r, const Vec3f &v);
 };
 
 

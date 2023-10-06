@@ -25,7 +25,7 @@ Matrix Matrix::identity(int dimensions) {
     return E;
 }
 
-std::vector<float>& Matrix::operator[](const int i) {
+std::vector<float>& Matrix::operator[](int i) {
     assert(i>=0 && i<rows);
     return m[i];
 }
@@ -114,12 +114,36 @@ Vec4f Matrix::operator*(const Vec4f &v) {
             elems[i] += m[i][j] * v[j];
         }
     }
-    return Vec4f(elems[0], elems[1], elems[2], elems[3]);
+    return {elems[0], elems[1], elems[2], elems[3]};
+}
+
+Vec3f Matrix::operator*(const Vec3f &v) {
+    assert(rows == 3 && cols == 3);
+    float elems[3] = {0};
+    for (int i = 0; i < 3; i += 1) {
+        for (int j = 0; j < 3; j += 1) {
+            elems[i] += m[i][j] * v[j];
+        }
+    }
+    return {elems[0], elems[1], elems[2]};
 }
 
 Vec3f Matrix::multiply(const Vec3f &v, Vec4f::Type type) {
+    assert(rows == 4 && cols == 4);
     if (type == Vec4<float>::POINT) {
         return ((*this) * Vec4f(v, Vec4<float>::POINT)).proj3();
     }
     return ((*this) * Vec4f(v, Vec4<float>::VECTOR)).xyz();
+}
+
+void Matrix::assignRow(int r, const std::vector<float>& v) {
+    assert(v.size() == cols && r < rows && r >= 0);
+    m[r] = v;
+}
+
+void Matrix::assignRow(int r, const Vec3f &v) {
+    assert(3 == cols && r < rows && r >= 0);
+    for (int i = 0; i < 3; i += 1) {
+        m[r][i] = v[i];
+    }
 }

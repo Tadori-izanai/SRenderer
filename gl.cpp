@@ -390,9 +390,9 @@ Matrix getViewport(int width, int height, int depth, int x, int y) {
 
 Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
     float eps = 1e-2;
-    Vec2f AB(A - B);
-    Vec2f AC(A - C);
-    Vec2f PA(P - A);
+    Vec2f AB(B - A);
+    Vec2f AC(C - A);
+    Vec2f PA(A - P);
     Vec3f crossProd = Vec3f(AB.x, AC.x, PA.x) ^ Vec3f(AB.y, AC.y, PA.y);
     if (std::abs(crossProd.z) < eps) {
         return {-1, 1, 1};
