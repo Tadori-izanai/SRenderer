@@ -104,4 +104,9 @@ public:
  */
 void triangle(Vec4f pts[], IShader &shader, TGAImage &canvas, float *zBuffer);
 
+//
+Vec2f getHammersley(uint32_t i, uint32_t N);
+
+std::vector<Vec3f> getRandomPointsOnHemisphere(uint32_t numPoints);
+
 #endif //__GL_H__

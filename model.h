@@ -50,15 +50,14 @@ public:
     Mesh(const char *filename, const char *textureFile, const char *normalFile, const char *specularFile);
     ~Mesh() {}
 
-//    size_t nVertices() { return vertices.size(); }
     size_t nFaces() { return faces.size(); }
-//    Vertex vert(size_t idx) const { return vertices[idx]; }
-//    std::vector<size_t> face(int idx) { return faces[idx]; }
     Vertex getVertex(int iFace, int iVert) { return vertices[faces[iFace][iVert]]; }
 
     TGAColor getDiffuse(Vec2f uv) { return diffuseMap.get(uv); }
     Vec3f getNormal(Vec2f uv);
     float getSpecular(Vec2f uv);
+
+    Vec2i textureSize() { return {diffuseMap.get_width(), diffuseMap.get_height()}; }
 };
 
 #endif //__MODEL_H__

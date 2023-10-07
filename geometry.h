@@ -23,6 +23,8 @@ template <class t> struct Vec2 {
 	//
 	inline t operator [](int idx) const { return raw[idx]; }
     inline Vec2<t> operator /(float f)          const { return Vec2<t>(u/f, v/f); }
+    float norm () const { return std::sqrt(x*x+y*y); }
+    Vec2<t> & normalize(t l=1) { *this = (*this)*(l/norm()); return *this; }
 };
 typedef Vec2<float> Vec2f;
 typedef Vec2<int>   Vec2i;

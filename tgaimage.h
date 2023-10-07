@@ -36,6 +36,11 @@ struct TGAColor {
 	TGAColor() : val(0), bytespp(1) {
 	}
 
+    TGAColor(unsigned char v) : raw(), bytespp(1) {
+        for (int i=0; i<4; i++) raw[i] = 0;
+        raw[0] = v;
+    }
+
     TGAColor(unsigned char R, unsigned char G, unsigned char B) : b(B), g(G), r(R), a(255) {
     }
 

@@ -447,3 +447,32 @@ void triangle(Vec4f pts[], IShader &shader, TGAImage &canvas, float *zBuffer) {
     }
 }
 
+Vec2f getHammersley(uint32_t i, uint32_t N) { // 0-1
+    uint32_t bits = (i << 16u) | (i >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    float rdi = float(bits) * 2.3283064365386963e-10;
+    return {float(i) / float(N), rdi};
+}
+
+std::vector<Vec3f> getRandomPointsOnHemisphere(uint32_t numPoints) {
+    std::vector<Vec3f> points;
+
+    for (uint32_t i = 0; i < numPoints; ++i) {
+        Vec2f hammersley = getHammersley(i, numPoints);
+        float phi = 2.0f * M_PI * hammersley.x; // 角度 phi 在 [0, 2π] 之间
+        float cosTheta = 1.0f - hammersley.y; // cos(theta) 在 [0, 1] 之间
+
+        float x = std::cos(phi) * std::sqrt(1.0f - cosTheta * cosTheta);
+        float y = std::sin(phi) * std::sqrt(1.0f - cosTheta * cosTheta);
+        float z = cosTheta;
+
+        points.emplace_back(x, y, z);
+    }
+
+    return points;
+}
+
+

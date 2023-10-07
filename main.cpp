@@ -1,6 +1,8 @@
+#include <utility>
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <omp.h>
 
 #include "tgaimage.h"
 #include "model.h"
@@ -301,60 +303,24 @@ void demo9() {
     canvas.write_tga_file("output/mvp.tga");
 }
 
-void test0() {
+void test() {
 //    Vec3f v(1, 2, 3);
 //    Vec4f vv(v, Vec4<float>::POINT);
 //    std::cout << v << vv << std::endl;
 //    std::cout << std::numeric_limits<float>::min() << std::endl;
 //    std::cout << std::numeric_limits<float>::lowest() << std::endl;
 //    std::cout << std::numeric_limits<float>::max() << std::endl;
-//
-//    Matrix M = Matrix::identity(4);
-//    std::cout << M.multiply(v, Vec4<float>::VECTOR) << std::endl;
-//    std::cout << M.multiply(v, Vec4<float>::POINT) << std::endl;
 
-    Matrix m(3, 3);
-    std::cout << m << std::endl;
-}
-
-void test() {
-//    std::cout << int(1.1) << std::endl;
-//    std::cout << int(1.5) << std::endl;
-//    std::cout << int(1.6) << std::endl;
-
-    Vec3f lightDir(0, 0, -1);
-    int width = 800;
-    int height = 800;
-    TGAImage canvas(width, height, TGAImage::RGB);
-    TGAImage texture;
-    if (!texture.read_tga_file("../obj/african_head_diffuse.tga")) {
-        std::cout << "Failed to read ../obj/african_head_diffuse.tga" << std::endl;
-        return;
-    }
-    Mesh model("../obj/african_head.obj");
-
-    int n = model.nFaces();
-    float *zBuffer = new float[width * height];
-    std::fill(zBuffer, zBuffer + width * height, -1);
-
-    for (int i = 0; i < n; i += 1) {
-        Vec3f screenCoords[3];
-        Vec2f textureCoords[3];
-        Vec3f normals[3];
-        for (int j = 0; j < 3; j += 1) {
-            Vertex curr = model.getVertex(i, j);
-            screenCoords[j] = worldToScreen(curr.position, width, height);
-            textureCoords[j] = curr.uv;
-            normals[j] = curr.normal;
-        }
-
-        triangle(canvas, texture, zBuffer, lightDir, screenCoords, textureCoords, normals);
+    auto points = getRandomPointsOnHemisphere(1000);
+    for (const auto &p : points) {
+        std::cout << p;
     }
 
-    canvas.flip_vertically();
-    canvas.write_tga_file("output/test.tga");
+    Vec2f v(3, 4);
+    std::cout << v << std::endl;
+    std::cout << v.normalize() << std::endl;
+    std::cout << v << std::endl;
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -365,6 +331,7 @@ const int depth = 255;
 
 Vec3f lightDir(-1, -1, 0);
 Vec3f eyePos(1, 1, 4);
+//Vec3f eyePos(1, -1, 4);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
@@ -375,7 +342,7 @@ class DepthShader : public IShader {
     Vec3f varyingPositions[3];
 
 public:
-    explicit DepthShader(Matrix mvp) : uniformMVP(mvp) {}
+    explicit DepthShader(Matrix mvp) : uniformMVP(std::move(mvp)) {}
 
     Vec4f vertex(int iFace, int nthVert) override {
         Vertex curr = model->getVertex(iFace, nthVert);
@@ -391,6 +358,79 @@ public:
             z += varyingPositions[i].z * bary[i];
         }
         color = WHITE * (z / depth);
+        return false;
+    }
+};
+
+class DepthShaderLite : public IShader {
+    Matrix uniformMVP;
+
+public:
+    explicit DepthShaderLite(Matrix mvp) : uniformMVP(std::move(mvp)) {}
+
+    Vec4f vertex(int iFace, int nthVert) override {
+        Vertex curr = model->getVertex(iFace, nthVert);
+        Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
+        gl_Vertex = viewport * uniformMVP * gl_Vertex;
+        return gl_Vertex;
+    }
+
+    bool fragment(Vec3f bary, TGAColor &color) override {
+        return false;
+    }
+};
+
+class OcclusionShader: public IShader {
+    Matrix uniformMVP;
+    Matrix uniformMVPLight;
+    Vec3f varyingPositions[3];
+    Vec2f varyingUVs[3];
+    TGAImage *occ;
+    float *depthBuffer;
+
+public:
+    explicit OcclusionShader(Matrix mvp, Matrix mvpLight, TGAImage *occ, float *depthBuffer)
+        : uniformMVP(std::move(mvp)), uniformMVPLight(std::move(mvpLight)), occ(occ), depthBuffer(depthBuffer) {}
+
+    Vec4f vertex(int iFace, int nthVert) override {
+        Vertex curr = model->getVertex(iFace, nthVert);
+        Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
+        gl_Vertex = viewport * uniformMVP * gl_Vertex;
+
+        varyingPositions[nthVert] = curr.position;
+        varyingUVs[nthVert] = curr.uv;
+        return gl_Vertex;
+    }
+
+    bool fragment(Vec3f bary, TGAColor &color) override {
+        const float eps = 11.11;
+        Vec3f positionInSM = (viewport * uniformMVPLight).multiply(
+            varyingPositions[0] * bary[0] + varyingPositions[1] * bary[1] + varyingPositions[2] * bary[2],
+            Vec4<float>::POINT
+        );
+        if (positionInSM.z > depthBuffer[int(positionInSM.x) + width * int(positionInSM.y)] - eps) {
+            Vec2f uv = varyingUVs[0] * bary[0] + varyingUVs[1] * bary[1] + varyingUVs[2] * bary[2];
+            occ->set(occ->get_width() * uv.u, occ->get_height() * uv.v, WHITE);
+        }
+        return false;
+    }
+};
+
+class DiffuseShader : public IShader {
+    Matrix uniformMVP;
+    Vec2f varyingUVs[3];
+public:
+    explicit DiffuseShader(Matrix mvp) : uniformMVP(std::move(mvp)) {}
+    Vec4f vertex(int iFace, int nthVert) override {
+        Vertex curr = model->getVertex(iFace, nthVert);
+        Vec4f gl_Vertex(curr.position, Vec4<float>::POINT);     // gl_Vertex
+        gl_Vertex = viewport * uniformMVP * gl_Vertex;
+        varyingUVs[nthVert] = curr.uv;
+        return gl_Vertex;
+    }
+    bool fragment(Vec3f bary, TGAColor &color) override {
+        Vec2f uv = varyingUVs[0] * bary[0] + varyingUVs[1] * bary[1] + varyingUVs[2] * bary[2];
+        color = model->getDiffuse(uv);
         return false;
     }
 };
@@ -497,22 +537,174 @@ public:
 };
 
 /** Gets the shadow map, and returns the MVP on light (the viewport matrix is the same) */
-Matrix getShadowMap(float *shadowDepth) {
+Matrix getShadowMap(float *depthBuffer) {
     Matrix MV = lookAt(-lightDir, center, up);
     Matrix P = Matrix::identity(4);        // non perspective
 
     TGAImage shadowFrame(width, height, TGAImage::RGB);
-    DepthShader ds(P * MV);
+//    DepthShader ds(P * MV);
+    DepthShaderLite ds(P * MV);
     for (int i = 0; i < model->nFaces(); i += 1) {
         Vec4f screenCoords[3];
         for (int j = 0; j < 3; j += 1) {
             screenCoords[j] = ds.vertex(i, j);
         }
-        triangle(screenCoords, ds, shadowFrame, shadowDepth);
+        triangle(screenCoords, ds, shadowFrame, depthBuffer);
     }
-    shadowFrame.flip_vertically();
-    shadowFrame.write_tga_file("../output/shadow_map.tga");
+//    shadowFrame.flip_vertically();
+//    shadowFrame.write_tga_file("../output/shadow_map.tga");
     return P * MV;
+}
+
+void precomputeOcclusionMap() {
+    const int N = 1000;
+
+    model = new Mesh("../obj/diablo3_pose/diablo3_pose.obj", "../obj/diablo3_pose/diablo3_pose_diffuse.tga");
+    viewport = getViewport(width * 3 / 4, height * 3 / 4, depth, width / 8, height / 8);
+
+    std::vector<Vec3f> lightPositions = getRandomPointsOnHemisphere(N);
+
+    Vec2i textureSize = model->textureSize();
+    TGAImage occlusionMaps[N];
+    for (int i = 0; i < N; i += 1) {
+        occlusionMaps[i] = TGAImage(textureSize[0], textureSize[1], TGAImage::RGB);
+    }
+
+#pragma omp parallel for shared(lightPositions, textureSize, center, up, model,\
+projection, modelView, std::cout, N, occlusionMaps) default(none)
+    for (int k = 0; k < N; k += 1) {
+        const auto &l = lightPositions[k] * 2.f;
+
+        // pass 1: SM
+        auto depthBuffer = new float[height * width];
+        std::fill(depthBuffer, depthBuffer + width * depth, std::numeric_limits<float>::lowest());
+        Matrix MV = lookAt(l, center, up);
+        Matrix P = Matrix::identity(4);
+
+        TGAImage shadowFrame(width, height, TGAImage::RGB);
+        DepthShaderLite ds(P * MV);
+        for (int i = 0; i < model->nFaces(); i += 1) {
+            Vec4f screenCoords[3];
+            for (int j = 0; j < 3; j += 1) {
+                screenCoords[j] = ds.vertex(i, j);
+            }
+            triangle(screenCoords, ds, shadowFrame, depthBuffer);
+        }
+
+        // pass 2: get occlusion map
+        TGAImage frame(width, height, TGAImage::RGB);
+        auto *zBuffer = new float[width * height];
+        std::fill(zBuffer, zBuffer + width * height, std::numeric_limits<float>::lowest());
+        modelView = lookAt(l, center, up);
+        projection = Matrix::identity(4);
+
+        OcclusionShader shader(projection * modelView, P *  MV, &occlusionMaps[k], depthBuffer);
+        for (int i = 0; i < model->nFaces(); i += 1) {
+            Vec4f screenCoords[3];
+            for (int j = 0; j < 3; j += 1) {
+                screenCoords[j] = shader.vertex(i, j);
+            }
+            triangle(screenCoords, shader, frame, zBuffer);
+        }
+
+        std::cout << "Done with sample point #" << k << ", total: " << N << std::endl;
+        delete[] zBuffer;
+        delete[] depthBuffer;
+    }
+
+    TGAImage occlusionMap(textureSize[0], textureSize[1], TGAImage::RGB);
+#pragma omp parallel for shared(textureSize, occlusionMaps, occlusionMap) default(none)
+//    for (int i = 0; i < textureSize[0]; i += 1) {
+//        for (int j = 0; j < textureSize[1]; j += 1) {
+//            int c = 0;
+//            for (int k = 0; k < N; k += 1) {
+//                c += occlusionMaps[k].get(i, j)[0];
+//            }
+//            c /= N;
+//            occlusionMap.set(i, textureSize[1] - 1 - j, TGAColor(c, c, c, 255));
+//        }
+//    }
+    for (int i=0; i<1024; i++) {
+        for (int j=0; j<1024; j++) {
+            for (int iter = 1; iter <= N; iter += 1) {
+                float tmp = occlusionMap.get(i,j)[0];
+                float c = (tmp*(iter-1)+occlusionMaps[iter].get(i,1023-j)[0])/(float)iter+.5f;
+                occlusionMap.set(i, j, TGAColor(c,c,c,255));
+            }
+        }
+    }
+
+    occlusionMap.flip_vertically();
+    occlusionMap.write_tga_file("../output/diablo3_pose_diffuse_ao.tga");
+//    occlusionMaps[0].write_tga_file("../output/diablo3_pose_diffuse_aoooo.tga");
+    delete model;
+}
+
+float getMaxSlope(const float *zBuffer, Vec2f p, Vec2f dir) {
+    float t = 1.f;
+    float z0 = zBuffer[int(p.x) + width * int(p.y)];
+
+    Vec2f curr = p + dir * t;
+    float maxSlope = 0.f;       // the tangent of the slope angle
+    while (curr.x >= 0 && curr.y >= 0 && curr.x < width && curr.y < height) {
+        float tanTheta = (zBuffer[int(curr.x) + width * int(curr.y)] - z0) / t;
+        maxSlope = std::max(maxSlope, tanTheta);
+        t += 1.f;
+        curr = p + dir * t;
+    }
+
+    return maxSlope;
+}
+
+void demoSSAO() {
+    eyePos = Vec3f(1.2, -.8, 3);
+    model = new Mesh("../obj/diablo3_pose/diablo3_pose.obj");
+
+    modelView = lookAt(eyePos, center, up);
+    projection = getProjection((eyePos - center).norm());
+    viewport = getViewport(width * 3 / 4, height * 3 / 4, depth, width / 8, height / 8);
+
+    TGAImage frame(width, height, TGAImage::RGB);
+    auto zBuffer = new float[width * height];
+    std::fill(zBuffer, zBuffer + width * height, std::numeric_limits<float>::lowest());
+
+    DepthShaderLite ds(projection * modelView);
+    for (int i = 0; i < model->nFaces(); i += 1) {
+        Vec4f screenCoords[3];
+        for (int j = 0; j < 3; j += 1) {
+            screenCoords[j] = ds.vertex(i, j);
+        }
+        triangle(screenCoords, ds, frame, zBuffer);
+    }
+
+    for (int x = 0; x < width; x += 1) {
+        for (int y = 0; y < height; y += 1) {
+            if (zBuffer[x + y * width] < 0) {
+                continue;
+            }
+
+            Vec2f curr((float) x + .5f, (float) y + .5f);
+            float totSolidAngle = 0.f;
+
+            for (int dx = -1; dx <= 1; dx += 1) {
+                for (int dy = -1; dy <= 1; dy += 1) {
+                    if (dx == 0 && dy == 0) {
+                        continue;
+                    }
+                    Vec2f dir = Vec2f((float) dx, (float) dy).normalize();
+                    float t = getMaxSlope(zBuffer, curr, dir);
+                    totSolidAngle += M_PI / 4 * (1 - t / std::sqrt(1 + t * t));     // pi / 4 * (1 - cos(theta))
+                }
+            }
+            float c = std::min(1.f, (float) std::pow(totSolidAngle / (2 * M_PI), 1.5f) * 1.5f);
+            frame.set(x, y, WHITE * c);
+        }
+    }
+
+    frame.flip_vertically();
+    frame.write_tga_file("../output/output.tga");
+    delete[] zBuffer;
+    delete model;
 }
 
 void demo() {
@@ -536,6 +728,7 @@ void demo() {
     std::fill(zBuffer, zBuffer + width * height, std::numeric_limits<float>::lowest());
 
     Shader shader(projection * modelView, lightMVP);
+//    DiffuseShader shader(projection * modelView);
 //    TGShader shader(projection * modelView);
     for (int i = 0; i < model->nFaces(); i += 1) {
         Vec4f screenCoords[3];
@@ -553,6 +746,9 @@ void demo() {
 }
 
 int main(int argc, char** argv) {
-	demo();
+//    test();
+//	demo();
+    demoSSAO();
+//	precomputeOcclusionMap();
 	return 0;
 }
